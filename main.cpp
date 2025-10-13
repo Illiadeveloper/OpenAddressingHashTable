@@ -1,8 +1,4 @@
-#include "hash_functions/hash_functions.h"
-
+//cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build && ./build/OpenHashTable
 int main (int argc, char *argv[]) {
-  std::cout << HashFunctions::hash(12.121f) << std::endl;
-  std::cout << HashFunctions::hash(48) << std::endl;
-  std::cout << HashFunctions::hash('0') << std::endl;
   return 0;
 }
