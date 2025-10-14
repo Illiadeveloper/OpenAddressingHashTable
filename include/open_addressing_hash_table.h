@@ -1,8 +1,7 @@
 #pragma once
 #include "hash_functions.h"
+#include <algorithm>
 #include <cstddef>
-#include <iterator>
-#include <locale>
 #include <vector>
 
 enum class EntryState { EMPTY, OCCUPIED, DELETED };
@@ -74,11 +73,13 @@ public:
 
   OpenAddressingHashTable() : num_elements(0), data(4) {}
 
-  iterator begin() { return iterator(&data.front(), &data.back() + 1); };
-  iterator end() { return iterator(&data.back() + 1, &data.back() + 1); };
+  iterator begin() { return iterator(data.data(), data.data() + data.size()); };
+  iterator end() {
+    return iterator(data.data() + data.size(), data.data() + data.size());
+  };
 
   void insert(key_type key, mapped_type value);
-  void erase(key_type key);
+  size_type erase(key_type key);
   iterator find(key_type key);
 
   void rehash(size_type new_capacity);
@@ -110,11 +111,33 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
 }
 
 template <typename K, typename V>
-void OpenAddressingHashTable<K, V>::erase(key_type key) {}
+typename OpenAddressingHashTable<K, V>::size_type
+OpenAddressingHashTable<K, V>::erase(key_type key) {
+  size_t index = hasher(key) & (data.size() - 1);
+
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+      data[index].state = EntryState::DELETED;
+      --num_elements;
+      return 1;
+    }
+    index = (index + 1) & (data.size() - 1);
+  }
+  return 0;
+}
 
 template <typename K, typename V>
 typename OpenAddressingHashTable<K, V>::iterator
-OpenAddressingHashTable<K, V>::find(key_type key) {}
+OpenAddressingHashTable<K, V>::find(key_type key) {
+  size_t index = hasher(key) & (data.size() - 1);
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+      return iterator(&*(data.begin() + index), &data.back() + 1);
+    }
+    index = (index + 1) & (data.size() - 1);
+  }
+  return end();
+}
 
 template <typename K, typename V>
 void OpenAddressingHashTable<K, V>::rehash(size_type new_capacity) {
