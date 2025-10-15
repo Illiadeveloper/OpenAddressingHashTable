@@ -5,6 +5,7 @@
 #include <vector>
 
 enum class EntryState { EMPTY, OCCUPIED, DELETED };
+constexpr float LOAD_FACTOR = 0.7f;
 
 template <typename K, typename V> //
 struct Entry {
@@ -56,8 +57,6 @@ public:
     }
   };
 
-  class const_iterator {};
-
   // Usings for STD cointainers
   using key_type = K;
   using mapped_type = V;
@@ -94,7 +93,7 @@ private:
 
 template <typename K, typename V>
 void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
-  if ((float)num_elements / data.size() > 0.7f) {
+  if ((float)num_elements / data.size() > LOAD_FACTOR) {
     rehash(data.size() * 2);
   }
   int index = hasher(key) & (data.size() - 1);
