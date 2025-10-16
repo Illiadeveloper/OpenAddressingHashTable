@@ -1,8 +1,20 @@
-#include "hash_functions/hash_functions.h"
+#include "open_addressing_hash_table.h"
+#include <iostream>
+//cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build && ./build/OpenHashTable
 
 int main (int argc, char *argv[]) {
-  std::cout << HashFunctions::hash(12.121f) << std::endl;
-  std::cout << HashFunctions::hash(48) << std::endl;
-  std::cout << HashFunctions::hash('0') << std::endl;
+  OpenAddressingHashTable<int, char> table;
+  table[5] = 'c';
+  table[-11] = 'a';
+
+  table.insert(6, 'b');
+  table.insert(40, 'h');
+  table.insert(80, 'm');
+
+  for(auto& x : table) {
+    std::cout << x.value << " ";
+  }
+  std::cout << std::endl;
+ std::cout << table.at(41) << std::endl;
   return 0;
 }
