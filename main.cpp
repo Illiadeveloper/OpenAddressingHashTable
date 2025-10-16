@@ -4,18 +4,17 @@
 
 int main (int argc, char *argv[]) {
   OpenAddressingHashTable<int, char> table;
-  table.insert(5, 'c');
-  table.insert(-11, 'a');
+  table[5] = 'c';
+  table[-11] = 'a';
+
   table.insert(6, 'b');
   table.insert(40, 'h');
   table.insert(80, 'm');
 
-  table.erase(80);
-
   for(auto& x : table) {
     std::cout << x.value << " ";
   }
-
   std::cout << std::endl;
+ std::cout << table.at(41) << std::endl;
   return 0;
 }

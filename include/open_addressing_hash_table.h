@@ -2,6 +2,7 @@
 #include "hash_functions.h"
 #include <algorithm>
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 enum class EntryState { EMPTY, OCCUPIED, DELETED };
@@ -81,6 +82,9 @@ public:
   size_type erase(key_type key);
   iterator find(key_type key);
 
+  mapped_type &operator[](key_type key);
+  mapped_type &at(key_type key);
+
   void rehash(size_type new_capacity);
 
   std::vector<Entry<K, V>> get_container() const { return data; }
@@ -107,6 +111,40 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
   data[index].state = EntryState::OCCUPIED;
   num_elements++;
   return;
+}
+
+template <typename K, typename V>
+typename OpenAddressingHashTable<K, V>::mapped_type &
+OpenAddressingHashTable<K, V>::operator[](key_type key) {
+  size_t index = hasher(key) & (data.size() - 1);
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+      return data[index].value;
+    }
+    index = (index + 1) & (data.size() - 1);
+  }
+  if ((float)num_elements / data.size() > LOAD_FACTOR) {
+    rehash(data.size() * 2);
+    index = hasher(key) & (data.size() - 1);
+  }
+  data[index].value = mapped_type{};
+  data[index].key = key;
+  data[index].state = EntryState::OCCUPIED;
+  num_elements++;
+  return data[index].value;
+}
+
+template <typename K, typename V>
+typename OpenAddressingHashTable<K, V>::mapped_type &
+OpenAddressingHashTable<K, V>::at(key_type key) {
+  size_t index = hasher(key) & (data.size() - 1);
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+      return data[index].value;
+    }
+    index = (index + 1) & (data.size() - 1);
+  }
+  throw std::out_of_range("function at(): key was not found");
 }
 
 template <typename K, typename V>

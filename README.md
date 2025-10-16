@@ -7,14 +7,13 @@ The goal of the project is to explore and implement the internal mechanisms of h
 
 ## ✅ Done
 - ✅ **Minimal Hash Table functions** (`insert`, `delete`, `find`)
+- ✅ **operator[] and at()**
 - ✅ **Iterator**
 - ✅ **Minimal Hash function**
-
 ---
 
 ## 🚧 In Progress / Planned
 
-- ⬜ **operator[]** and **at()** — standard-style accessors  
 - ⬜ **const_iterator** — read-only iteration support  
 - ⬜ **Lazy rehash** — rehashing when too many tombstones accumulate  
 - ⬜ **Move semantics** — improve rehash and copy efficiency  
