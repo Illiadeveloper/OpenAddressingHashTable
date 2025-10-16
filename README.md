@@ -11,12 +11,11 @@ The goal of the project is to explore and implement the internal mechanisms of h
 - ✅ **Iterator**
 - ✅ **Minimal Hash function**
 - ✅ **Utility methods**
+- ✅ **Lazy rehash**
 ---
 
 ## 🚧 In Progress / Planned
 
-- ⬜ **const_iterator** — read-only iteration support  
-- ⬜ **Lazy rehash** — rehashing when too many tombstones accumulate  
 - ⬜ **Move semantics** — improve rehash and copy efficiency  
 - ⬜ **Collision statistics** — track and print probing/collision data  
 - ⬜ **Quadratic and double hashing** — additional probing strategies  

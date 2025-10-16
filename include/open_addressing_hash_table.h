@@ -2,11 +2,14 @@
 #include "hash_functions.h"
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 
 enum class EntryState { EMPTY, OCCUPIED, DELETED };
+
 constexpr float LOAD_FACTOR = 0.7f;
+constexpr float DELETE_FACTOR = 0.3f;
 
 template <typename K, typename V> //
 struct Entry {
@@ -104,6 +107,7 @@ private:
   std::vector<Entry<K, V>> data;
   Hash<K> hasher;
   size_t num_elements = 0;
+  size_t num_deleted = 0;
 };
 
 template <typename K, typename V>
@@ -115,6 +119,10 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
 
   while (data[index].state == EntryState::OCCUPIED) {
     index = (index + 1) & (data.size() - 1);
+  }
+
+  if(data[index].state == EntryState::DELETED) {
+    num_deleted--;
   }
 
   data[index].value = value;
@@ -134,7 +142,7 @@ OpenAddressingHashTable<K, V>::operator[](key_type key) {
     }
     index = (index + 1) & (data.size() - 1);
   }
-  if ((float)num_elements / data.size() > LOAD_FACTOR) {
+  if (static_cast<float>(num_elements) / data.size() > LOAD_FACTOR) {
     rehash(data.size() * 2);
     index = hasher(key) & (data.size() - 1);
   }
@@ -161,12 +169,17 @@ OpenAddressingHashTable<K, V>::at(key_type key) {
 template <typename K, typename V>
 typename OpenAddressingHashTable<K, V>::size_type
 OpenAddressingHashTable<K, V>::erase(key_type key) {
-  size_t index = hasher(key) & (data.size() - 1);
+  if (static_cast<float>(num_deleted) / data.size() > DELETE_FACTOR) {
+      rehash(data.size());
+      num_deleted = 0;
+  }
 
+  size_t index = hasher(key) & (data.size() - 1);
   while (data[index].state != EntryState::EMPTY) {
     if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
       data[index].state = EntryState::DELETED;
       --num_elements;
+      num_deleted++;
       return 1;
     }
     index = (index + 1) & (data.size() - 1);
