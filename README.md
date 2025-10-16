@@ -10,6 +10,7 @@ The goal of the project is to explore and implement the internal mechanisms of h
 - ✅ **operator[] and at()**
 - ✅ **Iterator**
 - ✅ **Minimal Hash function**
+- ✅ **Utility methods**
 ---
 
 ## 🚧 In Progress / Planned
@@ -17,8 +18,6 @@ The goal of the project is to explore and implement the internal mechanisms of h
 - ⬜ **const_iterator** — read-only iteration support  
 - ⬜ **Lazy rehash** — rehashing when too many tombstones accumulate  
 - ⬜ **Move semantics** — improve rehash and copy efficiency  
-- ⬜ **Utility methods:**  
-  - `size()`, `empty()`, `clear()`, `contains()`, `count()`, `swap()`  
 - ⬜ **Collision statistics** — track and print probing/collision data  
 - ⬜ **Quadratic and double hashing** — additional probing strategies  
 - ⬜ **Unit tests** — coverage for all table operations  

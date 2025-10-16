@@ -15,6 +15,16 @@ int main (int argc, char *argv[]) {
     std::cout << x.value << " ";
   }
   std::cout << std::endl;
- std::cout << table.at(41) << std::endl;
+
+  std::cout << "SIZE: "<< table.size() << std::endl;
+  std::cout << "IS EMPTY: "<< table.empty() << std::endl;
+  table.clear();
+  for(auto& x : table) {
+    std::cout << x.value << " ";
+  }
+  std::cout << std::endl;
+
+  std::cout << "IS EMPTY: "<< table.empty() << std::endl;
+
   return 0;
 }

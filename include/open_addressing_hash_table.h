@@ -26,7 +26,9 @@ public:
     using pointer = value_type *;
     using reference = value_type &;
 
-    iterator(pointer ptr, pointer end_ptr) : current(ptr), end(end_ptr) {}
+    iterator(pointer ptr, pointer end_ptr) : current(ptr), end(end_ptr) {
+      skip_empty();
+    }
 
     iterator operator++() {
       ++current;
@@ -73,8 +75,10 @@ public:
 
   OpenAddressingHashTable() : num_elements(0), data(4) {}
 
-  iterator begin() { return iterator(data.data(), data.data() + data.size()); };
-  iterator end() {
+  iterator begin() noexcept {
+    return iterator(data.data(), data.data() + data.size());
+  };
+  iterator end() noexcept {
     return iterator(data.data() + data.size(), data.data() + data.size());
   };
 
@@ -89,6 +93,13 @@ public:
 
   std::vector<Entry<K, V>> get_container() const { return data; }
 
+  size_type size() const noexcept { return num_elements; }
+  bool empty() const noexcept { return num_elements == 0 ? 1 : 0; }
+
+  void clear() noexcept;
+  bool contains(const key_type &key) const;
+
+  void swap(OpenAddressingHashTable<K, V>& other);
 private:
   std::vector<Entry<K, V>> data;
   Hash<K> hasher;
@@ -193,4 +204,30 @@ void OpenAddressingHashTable<K, V>::rehash(size_type new_capacity) {
     }
   }
   data = std::move(new_data);
+}
+
+template <typename K, typename V>
+void OpenAddressingHashTable<K, V>::clear() noexcept {
+  for (size_type i = 0; i < data.size(); ++i) {
+    data[i].state = EntryState::EMPTY;
+  }
+  num_elements = 0;
+}
+template <typename K, typename V>
+bool OpenAddressingHashTable<K, V>::contains(const key_type &key) const {
+  size_type index = hasher(key) & (data.size() - 1);
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].key == key && data[index].state == EntryState::OCCUPIED) {
+      return true;
+    }
+    index = (index + 1) & (data.size() - 1);
+  }
+  return false;
+}
+
+template <typename K, typename V>
+void OpenAddressingHashTable<K, V>::swap(OpenAddressingHashTable<K, V>& other) {
+  std::swap(num_elements, other.num_elements);
+  std::swap(hasher, other.hasher);
+  std::swap(data, other.data);
 }
