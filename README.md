@@ -8,6 +8,7 @@ The goal of the project is to explore and implement the internal mechanisms of h
 ## ✅ Done
 - ✅ **Minimal Hash Table functions** (`insert`, `delete`, `find`)
 - ✅ **operator[] and at()**
+- ✅ **Move semantics**
 - ✅ **Iterator**
 - ✅ **Minimal Hash function**
 - ✅ **Utility methods**
@@ -16,7 +17,6 @@ The goal of the project is to explore and implement the internal mechanisms of h
 
 ## 🚧 In Progress / Planned
 
-- ⬜ **Move semantics** — improve rehash and copy efficiency  
 - ⬜ **Collision statistics** — track and print probing/collision data  
 - ⬜ **Quadratic and double hashing** — additional probing strategies  
 - ⬜ **Unit tests** — coverage for all table operations  

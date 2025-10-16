@@ -76,7 +76,21 @@ public:
 
   using iterator = iterator;
 
-  OpenAddressingHashTable() : num_elements(0), data(4) {}
+  OpenAddressingHashTable() : num_elements(0), data(4), num_deleted(0) {}
+  OpenAddressingHashTable(std::initializer_list<std::pair<const K, V>> init)
+      : num_elements(0), num_deleted(0), data(4) {
+    for (auto &p : init)
+      insert(p.first, p.second);
+  }
+  OpenAddressingHashTable(OpenAddressingHashTable &&other)
+      : num_elements(other.num_elements), data(std::move(other.data)),
+        num_deleted(other.num_deleted), hasher(std::move(other.hasher)) {
+    other.num_deleted = 0;
+    other.num_elements = 0;
+  }
+  OpenAddressingHashTable(const OpenAddressingHashTable &other)
+      : num_elements(other.num_elements), data(other.data),
+        num_deleted(other.num_deleted), hasher(other.hasher) {}
 
   iterator begin() noexcept {
     return iterator(data.data(), data.data() + data.size());
@@ -88,6 +102,12 @@ public:
   void insert(key_type key, mapped_type value);
   size_type erase(key_type key);
   iterator find(key_type key);
+
+  void operator=(const OpenAddressingHashTable &other);
+  void operator=(OpenAddressingHashTable &&other);
+
+  bool operator==(OpenAddressingHashTable &other);
+  bool operator!=(OpenAddressingHashTable &other);
 
   mapped_type &operator[](key_type key);
   mapped_type &at(key_type key);
@@ -102,12 +122,13 @@ public:
   void clear() noexcept;
   bool contains(const key_type &key) const;
 
-  void swap(OpenAddressingHashTable<K, V>& other);
+  void swap(OpenAddressingHashTable<K, V> &other);
+
 private:
   std::vector<Entry<K, V>> data;
   Hash<K> hasher;
-  size_t num_elements = 0;
-  size_t num_deleted = 0;
+  size_t num_elements;
+  size_t num_deleted;
 };
 
 template <typename K, typename V>
@@ -121,7 +142,7 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
     index = (index + 1) & (data.size() - 1);
   }
 
-  if(data[index].state == EntryState::DELETED) {
+  if (data[index].state == EntryState::DELETED) {
     num_deleted--;
   }
 
@@ -131,7 +152,7 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
   num_elements++;
   return;
 }
-
+/// ================== OPERATORS ================
 template <typename K, typename V>
 typename OpenAddressingHashTable<K, V>::mapped_type &
 OpenAddressingHashTable<K, V>::operator[](key_type key) {
@@ -154,6 +175,51 @@ OpenAddressingHashTable<K, V>::operator[](key_type key) {
 }
 
 template <typename K, typename V>
+void OpenAddressingHashTable<K, V>::operator=(
+    const OpenAddressingHashTable &other) {
+  data = other.data;
+  num_deleted = other.num_deleted;
+  num_elements = other.num_elements;
+  hasher = other.hasher;
+}
+
+template <typename K, typename V>
+void OpenAddressingHashTable<K, V>::operator=(OpenAddressingHashTable &&other) {
+  data = std::move(other.data);
+  hasher = std::move(other.hasher);
+
+  num_deleted = other.num_deleted;
+  num_elements = other.num_elements;
+
+  other.num_elements = 0;
+  other.num_deleted = 0;
+}
+
+template <typename K, typename V>
+bool OpenAddressingHashTable<K, V>::operator==(OpenAddressingHashTable &other) {
+
+  if (other.num_elements != num_elements)
+    return false;
+
+  for (auto &entry : data) {
+    if (entry.state != EntryState::OCCUPIED)
+      continue;
+    iterator it = other.find(entry.key);
+    if (it == other.end())
+      return false;
+
+    if (it->value != entry.value)
+      return false;
+  }
+  return true;
+}
+
+template <typename K, typename V>
+bool OpenAddressingHashTable<K, V>::operator!=(OpenAddressingHashTable &other) {
+  return !(*this == other);
+}
+
+template <typename K, typename V>
 typename OpenAddressingHashTable<K, V>::mapped_type &
 OpenAddressingHashTable<K, V>::at(key_type key) {
   size_t index = hasher(key) & (data.size() - 1);
@@ -170,8 +236,8 @@ template <typename K, typename V>
 typename OpenAddressingHashTable<K, V>::size_type
 OpenAddressingHashTable<K, V>::erase(key_type key) {
   if (static_cast<float>(num_deleted) / data.size() > DELETE_FACTOR) {
-      rehash(data.size());
-      num_deleted = 0;
+    rehash(data.size());
+    num_deleted = 0;
   }
 
   size_t index = hasher(key) & (data.size() - 1);
@@ -239,7 +305,7 @@ bool OpenAddressingHashTable<K, V>::contains(const key_type &key) const {
 }
 
 template <typename K, typename V>
-void OpenAddressingHashTable<K, V>::swap(OpenAddressingHashTable<K, V>& other) {
+void OpenAddressingHashTable<K, V>::swap(OpenAddressingHashTable<K, V> &other) {
   std::swap(num_elements, other.num_elements);
   std::swap(hasher, other.hasher);
   std::swap(data, other.data);
