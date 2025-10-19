@@ -1,3 +1,4 @@
+#include "hash_functions.h"
 #include "open_addressing_hash_table.h"
 #include <iostream>
 #include <utility>
@@ -5,21 +6,12 @@
 // && ./build/OpenHashTable
 
 int main(int argc, char *argv[]) {
-  OpenAddressingHashTable<int, char> table1 = {
-      {5, 'c'}, {-11, 'a'}, {6, 'b'}, {40, 'h'}, {80, 'm'}};
-  OpenAddressingHashTable<int, char> table2 = {{100, 'a'}, {200, 'b'}};
-  // OpenAddressingHashTable<int, char> table2;
-  table2 = table1;
-  std::cout << "TABLE 1:";
-  for (auto &x : table1) {
-    std::cout << x.value << " ";
+  OpenAddressingHashTable<int, int, Hash<int>, QuadraticHashing<int>> table;
+  for (int i = 0; i < 150; i += 2) {
+    table.insert(i, i * 100);
   }
-  std::cout << std::endl;
 
-  std::cout <<"IS EQUAL: " << (table1 == table2) << std::endl;
-
-  std::cout << "TABLE 2:";
-  for (auto &x : table2) {
+  for (auto &x : table) {
     std::cout << x.value << " ";
   }
   std::cout << std::endl;
