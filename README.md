@@ -13,14 +13,14 @@ The goal of the project is to explore and implement the internal mechanisms of h
 - ✅ **Minimal Hash function**
 - ✅ **Utility methods**
 - ✅ **Lazy rehash**
+- ✅ **Quadratic and double hashing**
+- ✅ **Template extensions**
+- ✅ **Unit tests**
 ---
 
 ## 🚧 In Progress / Planned
 
 - ⬜ **Collision statistics** — track and print probing/collision data  
-- ⬜ **Quadratic and double hashing** — additional probing strategies  
-- ⬜ **Unit tests** — coverage for all table operations  
-- ⬜ **Template extensions:** custom **allocator**, **hash function**, **key equality**
 
 ---
 

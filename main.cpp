@@ -1,9 +1,9 @@
 #include "hash_functions.h"
 #include "open_addressing_hash_table.h"
 #include <iostream>
-#include <utility>
-// cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build
-// && ./build/OpenHashTable
+
+// cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build && ./build/OpenHashTable
+// cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON && cmake --build build && ctest --test-dir ./build/tests
 
 int main(int argc, char *argv[]) {
   OpenAddressingHashTable<int, int, Hash<int>, QuadraticHashing<int>> table;

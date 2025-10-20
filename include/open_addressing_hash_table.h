@@ -1,9 +1,7 @@
 #pragma once
-#include "hash_functions.h"
 #include <algorithm>
 #include <cstddef>
 #include <functional>
-#include <iostream>
 #include <stdexcept>
 #include <vector>
 
@@ -27,13 +25,13 @@ template <typename K> struct LinearHashing {
 
 template <typename K> struct QuadraticHashing {
   size_t operator()(size_t hash, size_t i, size_t table_size) const {
-    return (hash + i * i) & (table_size - 1);
+    return (hash + (i + i * i) / 2) & (table_size - 1);
   }
 };
 
 template <typename K> struct DoubleHashing {
   size_t operator()(size_t hash1, size_t i, size_t table_size) const {
-    size_t hash2 = 1 + (hash1 & (table_size - 1));
+    size_t hash2 = ((hash1 >> 16) | 1);
     return (hash1 + i * hash2) & (table_size - 1);
   }
 };
@@ -67,8 +65,8 @@ public:
       return temp;
     };
 
-    bool operator==(const iterator &other) { return current == other.current; }
-    bool operator!=(const iterator &other) { return !(*this == other); }
+    bool operator==(const iterator &other) const { return current == other.current; }
+    bool operator!=(const iterator &other) const { return !(*this == other); }
 
     reference operator*() const { return *current; }
     pointer operator->() const { return current; };
