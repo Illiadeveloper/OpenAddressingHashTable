@@ -1,12 +1,20 @@
 #pragma once
+<<<<<<< HEAD
 #include "hash_functions.h"
 #include <algorithm>
 #include <cstddef>
+=======
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+>>>>>>> develop
 #include <stdexcept>
 #include <vector>
 
 enum class EntryState { EMPTY, OCCUPIED, DELETED };
+
 constexpr float LOAD_FACTOR = 0.7f;
+constexpr float DELETE_FACTOR = 0.3f;
 
 template <typename K, typename V> //
 struct Entry {
@@ -15,7 +23,29 @@ struct Entry {
   EntryState state = EntryState::EMPTY;
 };
 
-template <typename K, typename V> //
+template <typename K> struct LinearHashing {
+  size_t operator()(size_t hash, size_t i, size_t table_size) const {
+    return (hash + i) & (table_size - 1);
+  }
+};
+
+template <typename K> struct QuadraticHashing {
+  size_t operator()(size_t hash, size_t i, size_t table_size) const {
+    constexpr double c1 = 0.5, c2 = 0.5;
+    return (hash + static_cast<size_t>(c1 * i + c2 * i * i)) & (table_size - 1);
+  }
+};
+
+template <typename K> struct DoubleHashing {
+  size_t operator()(size_t hash1, size_t i, size_t table_size) const {
+    size_t hash2 = (hash1 ^ (hash1 >> 20) ^ (hash1 >> 12)) & (table_size - 1);
+    hash2 = (hash2 | 1); 
+    return (hash1 + i * hash2) & (table_size - 1);
+  }
+};
+
+template <typename K, typename V, typename HashFunction = std::hash<K>,
+          typename ProbingPolicy = LinearHashing<K>> //
 class OpenAddressingHashTable {
 public:
   class iterator {
@@ -26,7 +56,9 @@ public:
     using pointer = value_type *;
     using reference = value_type &;
 
-    iterator(pointer ptr, pointer end_ptr) : current(ptr), end(end_ptr) {}
+    iterator(pointer ptr, pointer end_ptr) : current(ptr), end(end_ptr) {
+      skip_empty();
+    }
 
     iterator operator++() {
       ++current;
@@ -41,8 +73,10 @@ public:
       return temp;
     };
 
-    bool operator==(const iterator &other) { return current == other.current; }
-    bool operator!=(const iterator &other) { return !(*this == other); }
+    bool operator==(const iterator &other) const {
+      return current == other.current;
+    }
+    bool operator!=(const iterator &other) const { return !(*this == other); }
 
     reference operator*() const { return *current; }
     pointer operator->() const { return current; };
@@ -71,16 +105,38 @@ public:
 
   using iterator = iterator;
 
-  OpenAddressingHashTable() : num_elements(0), data(4) {}
+  OpenAddressingHashTable() : num_elements(0), data(4), num_deleted(0) {}
+  OpenAddressingHashTable(std::initializer_list<std::pair<const K, V>> init)
+      : num_elements(0), num_deleted(0), data(4) {
+    for (auto &p : init)
+      insert(p.first, p.second);
+  }
+  OpenAddressingHashTable(OpenAddressingHashTable &&other)
+      : num_elements(other.num_elements), data(std::move(other.data)),
+        num_deleted(other.num_deleted), hasher(std::move(other.hasher)) {
+    other.num_deleted = 0;
+    other.num_elements = 0;
+  }
+  OpenAddressingHashTable(const OpenAddressingHashTable &other)
+      : num_elements(other.num_elements), data(other.data),
+        num_deleted(other.num_deleted), hasher(other.hasher) {}
 
-  iterator begin() { return iterator(data.data(), data.data() + data.size()); };
-  iterator end() {
+  iterator begin() noexcept {
+    return iterator(data.data(), data.data() + data.size());
+  };
+  iterator end() noexcept {
     return iterator(data.data() + data.size(), data.data() + data.size());
   };
 
   void insert(key_type key, mapped_type value);
   size_type erase(key_type key);
   iterator find(key_type key);
+
+  void operator=(const OpenAddressingHashTable &other);
+  void operator=(OpenAddressingHashTable &&other);
+
+  bool operator==(OpenAddressingHashTable &other);
+  bool operator!=(OpenAddressingHashTable &other);
 
   mapped_type &operator[](key_type key);
   mapped_type &at(key_type key);
@@ -89,21 +145,53 @@ public:
 
   std::vector<Entry<K, V>> get_container() const { return data; }
 
-private:
+  size_type size() const noexcept { return num_elements; }
+  bool empty() const noexcept { return num_elements == 0 ? 1 : 0; }
+
+  void clear() noexcept;
+  bool contains(const key_type &key) const;
+
+  void swap(OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy> &other);
+
+#ifdef HASH_TABLE_STATISTIC
+  size_t getDeletedElements() const { return num_deleted; }
+  size_t getInsertCollisions() const { return insertCollisions; }
+  size_t getRehashCollisions() const { return rehashCollisions; }
+  size_t getRehashCount() const { return rehashCount; }
+#endif // HASH_TABLE_STATISTIC
   std::vector<Entry<K, V>> data;
-  Hash<K> hasher;
-  size_t num_elements = 0;
+  HashFunction hasher;
+  ProbingPolicy probe;
+  size_t num_elements;
+  size_t num_deleted;
+#ifdef HASH_TABLE_STATISTIC
+
+  size_t insertCollisions = 0;
+  size_t rehashCollisions = 0;
+  size_t rehashCount = 0;
+#endif // HASH_TABLE_STATISTIC
 };
 
-template <typename K, typename V>
-void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::insert(
+    key_type key, mapped_type value) {
   if ((float)num_elements / data.size() > LOAD_FACTOR) {
     rehash(data.size() * 2);
   }
-  int index = hasher(key) & (data.size() - 1);
 
+  size_t hash = hasher(key);
+  size_t i = 0;
+
+  size_t index = probe(hash, i, data.size());
   while (data[index].state == EntryState::OCCUPIED) {
-    index = (index + 1) & (data.size() - 1);
+#ifdef HASH_TABLE_STATISTIC
+    insertCollisions++;
+#endif // HASH_TABLE_STATISTIC
+    index = probe(hash, ++i, data.size());
+  }
+
+  if (data[index].state == EntryState::DELETED) {
+    num_deleted--;
   }
 
   data[index].value = value;
@@ -113,19 +201,26 @@ void OpenAddressingHashTable<K, V>::insert(key_type key, mapped_type value) {
   return;
 }
 
-template <typename K, typename V>
-typename OpenAddressingHashTable<K, V>::mapped_type &
-OpenAddressingHashTable<K, V>::operator[](key_type key) {
-  size_t index = hasher(key) & (data.size() - 1);
+/// ================== OPERATORS ================
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+typename OpenAddressingHashTable<K, V, HashFunction,
+                                 ProbingPolicy>::mapped_type &
+OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::operator[](
+    key_type key) {
+  size_t hash = hasher(key);
+  size_t i = 0;
+  size_t index = probe(hash, i, data.size());
+
   while (data[index].state != EntryState::EMPTY) {
     if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
       return data[index].value;
     }
-    index = (index + 1) & (data.size() - 1);
+    index = probe(hash, ++i, data.size());
   }
-  if ((float)num_elements / data.size() > LOAD_FACTOR) {
+  if (static_cast<float>(num_elements) / data.size() > LOAD_FACTOR) {
     rehash(data.size() * 2);
-    index = hasher(key) & (data.size() - 1);
+    i = 0;
+    index = probe(hash, ++i, data.size());
   }
   data[index].value = mapped_type{};
   data[index].key = key;
@@ -134,63 +229,183 @@ OpenAddressingHashTable<K, V>::operator[](key_type key) {
   return data[index].value;
 }
 
-template <typename K, typename V>
-typename OpenAddressingHashTable<K, V>::mapped_type &
-OpenAddressingHashTable<K, V>::at(key_type key) {
-  size_t index = hasher(key) & (data.size() - 1);
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::operator=(
+    const OpenAddressingHashTable &other) {
+  data = other.data;
+  num_deleted = other.num_deleted;
+  num_elements = other.num_elements;
+  hasher = other.hasher;
+  probe = other.probe;
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::operator=(
+    OpenAddressingHashTable &&other) {
+  data = std::move(other.data);
+  hasher = std::move(other.hasher);
+  probe = std::move(other.probe);
+
+  num_deleted = other.num_deleted;
+  num_elements = other.num_elements;
+
+  other.num_elements = 0;
+  other.num_deleted = 0;
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+bool OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::operator==(
+    OpenAddressingHashTable &other) {
+  if (other.num_elements != num_elements)
+    return false;
+
+  for (auto &entry : data) {
+    if (entry.state != EntryState::OCCUPIED)
+      continue;
+
+    iterator it = other.find(entry.key);
+    if (it == other.end() || it->value != entry.value)
+      return false;
+  }
+  return true;
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+bool OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::operator!=(
+    OpenAddressingHashTable &other) {
+  return !(*this == other);
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+typename OpenAddressingHashTable<K, V, HashFunction,
+                                 ProbingPolicy>::mapped_type &
+OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::at(key_type key) {
+  size_t hash = hasher(key);
+  size_t i = 0;
+  size_t index = probe(hash, i, data.size());
+
   while (data[index].state != EntryState::EMPTY) {
-    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key)
       return data[index].value;
-    }
-    index = (index + 1) & (data.size() - 1);
+
+    ++i;
+    index = probe(hash, i, data.size());
   }
   throw std::out_of_range("function at(): key was not found");
 }
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+typename OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::size_type
+OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::erase(
+    key_type key) {
+  if (static_cast<float>(num_deleted) / data.size() > DELETE_FACTOR) {
+    rehash(data.size());
+    num_deleted = 0;
+  }
 
-template <typename K, typename V>
-typename OpenAddressingHashTable<K, V>::size_type
-OpenAddressingHashTable<K, V>::erase(key_type key) {
-  size_t index = hasher(key) & (data.size() - 1);
+  size_t hash = hasher(key);
+  size_t i = 0;
+  size_t index = probe(hash, i, data.size());
 
   while (data[index].state != EntryState::EMPTY) {
     if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
       data[index].state = EntryState::DELETED;
       --num_elements;
+      ++num_deleted;
       return 1;
     }
-    index = (index + 1) & (data.size() - 1);
+    ++i;
+    index = probe(hash, i, data.size());
   }
   return 0;
 }
 
-template <typename K, typename V>
-typename OpenAddressingHashTable<K, V>::iterator
-OpenAddressingHashTable<K, V>::find(key_type key) {
-  size_t index = hasher(key) & (data.size() - 1);
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+typename OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::iterator
+OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::find(key_type key) {
+  size_t hash = hasher(key);
+  size_t i = 0;
+  size_t index = probe(hash, i, data.size());
+
   while (data[index].state != EntryState::EMPTY) {
-    if (data[index].state == EntryState::OCCUPIED && data[index].key == key) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key)
       return iterator(&*(data.begin() + index), &data.back() + 1);
-    }
-    index = (index + 1) & (data.size() - 1);
+
+    ++i;
+    index = probe(hash, i, data.size());
   }
   return end();
 }
 
-template <typename K, typename V>
-void OpenAddressingHashTable<K, V>::rehash(size_type new_capacity) {
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::rehash(
+    size_type new_capacity) {
   std::vector<Entry<K, V>> new_data(new_capacity);
-  for (size_t i = 0; i < data.size(); ++i) {
-    if (data[i].state == EntryState::OCCUPIED) {
-      size_t new_index = hasher(data[i].key) & (new_data.size() - 1);
 
-      while (new_data[new_index].state == EntryState::OCCUPIED) {
-        new_index = (new_index + 1) & (new_data.size() - 1);
-      }
+#ifdef HASH_TABLE_STATISTIC
+  rehashCount++;
+#endif // HASH_TABLE_STATISTIC
 
-      new_data[new_index].key = data[i].key;
-      new_data[new_index].value = data[i].value;
-      new_data[new_index].state = EntryState::OCCUPIED;
+  for (auto &entry : data) {
+    if (entry.state != EntryState::OCCUPIED)
+      continue;
+
+    size_t hash = hasher(entry.key);
+    size_t i = 0;
+    size_t new_index = probe(hash, i, new_data.size());
+
+#ifdef HASH_TABLE_STATISTIC
+    if (new_data[new_index].state == EntryState::OCCUPIED)
+      rehashCollisions++;
+
+#endif // HASH_TABLE_STATISTIC
+
+    while (new_data[new_index].state == EntryState::OCCUPIED) {
+      ++i;
+      new_index = probe(hash, i, new_data.size());
+#ifdef HASH_TABLE_STATISTIC
+      rehashCollisions++;
+#endif // HASH_TABLE_STATISTIC
     }
+
+    new_data[new_index] = entry;
   }
+
   data = std::move(new_data);
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction,
+                             ProbingPolicy>::clear() noexcept {
+  for (auto &entry : data)
+    entry.state = EntryState::EMPTY;
+
+  num_elements = 0;
+  num_deleted = 0;
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+bool OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::contains(
+    const key_type &key) const {
+  size_t hash = hasher(key);
+  size_t i = 0;
+  size_t index = probe(hash, i, data.size());
+
+  while (data[index].state != EntryState::EMPTY) {
+    if (data[index].state == EntryState::OCCUPIED && data[index].key == key)
+      return true;
+
+    ++i;
+    index = probe(hash, i, data.size());
+  }
+  return false;
+}
+
+template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
+void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::swap(
+    OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy> &other) {
+  std::swap(num_elements, other.num_elements);
+  std::swap(num_deleted, other.num_deleted);
+  std::swap(hasher, other.hasher);
+  std::swap(probe, other.probe);
+  std::swap(data, other.data);
 }
