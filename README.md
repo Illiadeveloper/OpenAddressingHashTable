@@ -4,7 +4,7 @@ A minimal **C++ hash table** implementation using _open addressing_.
 This project was built **for educational purposes**, to deeply understand how hash tables work internally — including probing methods, load factors, and collision behavior.
 
 This version provides the **core functionality** only.  
-More experimental features and the full development history are available in the [`develop`](tree/develop) branch.
+More experimental features and the full development history are available in the [`develop`](../../tree/develop) branch.
 
 ## 🧩 Overview
 
