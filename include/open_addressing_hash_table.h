@@ -25,13 +25,15 @@ template <typename K> struct LinearHashing {
 
 template <typename K> struct QuadraticHashing {
   size_t operator()(size_t hash, size_t i, size_t table_size) const {
-    return (hash + (i + i * i) / 2) & (table_size - 1);
+    constexpr double c1 = 0.5, c2 = 0.5;
+    return (hash + static_cast<size_t>(c1 * i + c2 * i * i)) & (table_size - 1);
   }
 };
 
 template <typename K> struct DoubleHashing {
   size_t operator()(size_t hash1, size_t i, size_t table_size) const {
-    size_t hash2 = ((hash1 >> 16) | 1);
+    size_t hash2 = (hash1 ^ (hash1 >> 20) ^ (hash1 >> 12)) & (table_size - 1);
+    hash2 = (hash2 | 1); 
     return (hash1 + i * hash2) & (table_size - 1);
   }
 };
@@ -65,7 +67,9 @@ public:
       return temp;
     };
 
-    bool operator==(const iterator &other) const { return current == other.current; }
+    bool operator==(const iterator &other) const {
+      return current == other.current;
+    }
     bool operator!=(const iterator &other) const { return !(*this == other); }
 
     reference operator*() const { return *current; }
@@ -143,12 +147,23 @@ public:
 
   void swap(OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy> &other);
 
-private:
+#ifdef HASH_TABLE_STATISTIC
+  size_t getDeletedElements() const { return num_deleted; }
+  size_t getInsertCollisions() const { return insertCollisions; }
+  size_t getRehashCollisions() const { return rehashCollisions; }
+  size_t getRehashCount() const { return rehashCount; }
+#endif // HASH_TABLE_STATISTIC
   std::vector<Entry<K, V>> data;
   HashFunction hasher;
   ProbingPolicy probe;
   size_t num_elements;
   size_t num_deleted;
+#ifdef HASH_TABLE_STATISTIC
+
+  size_t insertCollisions = 0;
+  size_t rehashCollisions = 0;
+  size_t rehashCount = 0;
+#endif // HASH_TABLE_STATISTIC
 };
 
 template <typename K, typename V, typename HashFunction, typename ProbingPolicy>
@@ -157,11 +172,15 @@ void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::insert(
   if ((float)num_elements / data.size() > LOAD_FACTOR) {
     rehash(data.size() * 2);
   }
+
   size_t hash = hasher(key);
   size_t i = 0;
-  size_t index = probe(hash, i, data.size());
 
+  size_t index = probe(hash, i, data.size());
   while (data[index].state == EntryState::OCCUPIED) {
+#ifdef HASH_TABLE_STATISTIC
+    insertCollisions++;
+#endif // HASH_TABLE_STATISTIC
     index = probe(hash, ++i, data.size());
   }
 
@@ -317,6 +336,10 @@ void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::rehash(
     size_type new_capacity) {
   std::vector<Entry<K, V>> new_data(new_capacity);
 
+#ifdef HASH_TABLE_STATISTIC
+  rehashCount++;
+#endif // HASH_TABLE_STATISTIC
+
   for (auto &entry : data) {
     if (entry.state != EntryState::OCCUPIED)
       continue;
@@ -325,9 +348,18 @@ void OpenAddressingHashTable<K, V, HashFunction, ProbingPolicy>::rehash(
     size_t i = 0;
     size_t new_index = probe(hash, i, new_data.size());
 
+#ifdef HASH_TABLE_STATISTIC
+    if (new_data[new_index].state == EntryState::OCCUPIED)
+      rehashCollisions++;
+
+#endif // HASH_TABLE_STATISTIC
+
     while (new_data[new_index].state == EntryState::OCCUPIED) {
       ++i;
       new_index = probe(hash, i, new_data.size());
+#ifdef HASH_TABLE_STATISTIC
+      rehashCollisions++;
+#endif // HASH_TABLE_STATISTIC
     }
 
     new_data[new_index] = entry;
